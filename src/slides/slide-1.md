@@ -3,6 +3,7 @@ name: title
 
 # GeMS Lambda Pipeline
 
+## Dan Tenenbaum
 ???
 
 These are presenter notes (that's what the ??? indicates).
@@ -50,9 +51,13 @@ High-level overview presented by a member of the Geraghty Lab
 * HLA Typing
 ---
 
-## Architecture of the Pipeline (old version)
+## Architecture of the Pipeline (old version), part 1
 
 <!-- TODO: need Brandon/Wyatt to confirm my understanding of this -->
+
+![old pipeline part 1](img/old_pipeline_1.jpg)
+
+---
 
 Jobs are kicked off either with a [Django](https://www.djangoproject.com/)
 web app or from [BaseSpace](https://basespace.illumina.com/home/index).
