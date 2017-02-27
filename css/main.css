@@ -46,6 +46,14 @@ li p {
 .large {
   font-size: 2em;
 }
+.small {
+  font-size: 1em;
+}
+table,
+th,
+td {
+  border: 1px solid #000;
+}
 a,
 a > code {
   color: #f92672;
