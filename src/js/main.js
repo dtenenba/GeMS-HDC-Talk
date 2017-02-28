@@ -43,3 +43,7 @@ var slideShow = remark.create({
   highlightLines: true,
   highlightSpans: false
 });
+
+var d = new Date();
+var date = (d.getMonth() + 1) + "/" + d.getDate() + "/" + d.getFullYear();
+document.getElementById("display_time").innerHTML=date;
