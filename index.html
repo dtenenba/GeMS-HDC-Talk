@@ -17,7 +17,8 @@ name: title
 
 ## Dan Tenenbaum
 
-### (figure out how to add today's date dynamically)
+<h3 id="display_time"></h3>
+
 ???
 
 These are presenter notes (that's what the ??? indicates).
@@ -163,13 +164,91 @@ at which time they look in SimpleDB for information about what they should do.
 
 ---
 
-## Much more stuff to be added here...
+## How AWS Lambda is used in the pipeline
+
+* Lambda lets you define "Lambda functions" that can be written in
+  Python, Java, or Node.js. (Ours is in Python.)
+* These functions can be triggered by numerous events.
+* Using Amazon API Gateway, you can assign a URL to a Lambda function,
+  and trigger the function by calling that URL.
+* Using a tool called [Zappa](https://github.com/Miserlou/Zappa),
+  you can write an ordinary [Flask](http://flask.pocoo.org/) application
+  and deploy it as a Lambda function.
+* In our case, the Flask application has both ordinary endpoints
+  (for use by BaseSpace) and RESTful endpoints (for use by workers
+  and interested clients such as webapps).
+* Amazon has released its [Python Serverless Microframework for AWS](https://aws.amazon.com/blogs/developer/preview-the-python-serverless-microframework-for-aws/) (PSMA) which exposes a framework similar to,
+  but different from, Flask. We prefer to use Flask directly,
+  so we use Zappa.
+
+---
+
+## RESTful endpoints
+
+Endpoint | Method | Authenticated? | Purpose
+--- | --- | --- | ---
+`/job` | `POST` |  Yes | Start a new job.
+`/job` | `GET` | No | Get information about running jobs. Can be constrained by parameters to display only jobs of interest.
+`/stop_instances` | `POST` | Yes | Stop instances associated with a job. Only used by the final worker on a job.
+
+---
+
+## Example output of `/job` endpoint:
+
+```json
+[
+    {
+        "bucket": "direct.typing",
+        "hla_class": "2",
+        "overall_status": "COMPLETE",
+        "prefix": "2016-10-27-PT140",
+        "session_key": "will-be-overwritten (FIXME)",
+        "workers": [
+            {
+                "instance_id": "16f3230f6964b34915ebfa99dcc7f75a493e19aaff27350e4755a620d327cc75",
+                "instance_index": 1,
+                "samples": [
+                 "K158154-Mi001716_S1_L001_R1_001.fastq.gz",
+                 "K158154-Mi001716_S1_L001_R2_001.fastq.gz"
+                ],
+                "status": "COMPLETE"
+            }
+        ]
+    }
+]
+```
+
+---
+
+## Does this project use Python 2 or Python 3?
+
+TL;DR: Python 2.
+
+* Python 3 was released in 2008. It is the future of the
+  language. All new projects should use Python 3, and where
+  possible, old projects should be ported to Python 3.
+* This project was written in Python 2 when it came to SciComp.
+  There were two roadblocks to porting the code to Python 3:
+  * The BaseSpace API did not work in Python 3. I submitted
+    a [pull request](https://github.com/basespace/basespace-python-sdk/pull/20)
+    to fix this, which was accepted.
+  * Lambda itself does not support Python 3. This is puzzling
+    since it was launched in 2014. We have contacted AWS
+    and requested Python 3 support.
+* Since there are two separate codebases, and only one of them
+  needs to run as a Lambda function, one of the codebases
+  could theoretically be ported to Python 3. But this was
+  deemed too confusing. So both codebases remain in Python 2 for now.
+* Even though Python 3 is not used, we strive to write code
+  that will work in both versions.
+
+
 
 ---
 
 ## Best Practices
 
-* Linters (pylint, flake8, pyflakes)
+* Linters (pylint, flake8, pyflakes); [Atom](https://atom.io/) (editor) integration
 * Unit tests
 * Watching for [Anti-Patterns](https://docs.quantifiedcode.com/python-anti-patterns/)
 * Continuous Integration (CI) for Java code
@@ -179,9 +258,13 @@ at which time they look in SimpleDB for information about what they should do.
 
 ## The End
 
-Slides can be found .here.
+Slides can be found at:
 
-The source for the slides is .here.
+[https://dtenenba.github.io/GeMS-HDC-Talk/](dtenenba.github.io/GeMS-HDC-Talk/)
+
+The source for the slides can be found at:
+
+[https://github.com/dtenenba/GeMS-HDC-Talk/](https://github.com/dtenenba/GeMS-HDC-Talk/)
 
 
 ### Acknowledgements
