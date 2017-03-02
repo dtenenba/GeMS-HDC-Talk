@@ -240,6 +240,7 @@ TL;DR: Python 2.
 * Unit tests
 * Watching for [Anti-Patterns](https://docs.quantifiedcode.com/python-anti-patterns/)
 * Continuous Integration (CI) for Java code
+* Secrets Management with [CredStash](https://github.com/fugue/credstash)
 
 
 ---
