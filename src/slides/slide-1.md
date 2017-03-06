@@ -38,6 +38,12 @@ The Geraghty Lab reached out to
 
 The result of that work is what we are presenting today.
 
+???
+
+we accepted so that we could learn more about modern cloud stacks
+in the context of a real project.
+
+
 ---
 
 ## What is the GeMS Pipeline?
@@ -52,6 +58,12 @@ High-level overview presented by a member of the Geraghty Lab
 * Input (fasta files from illumina sequencer)
 * Output (a report that can be viewed in GeMS-UI) (screenshots?)
 * HLA Typing
+
+???
+
+pictures - they may have some pictures
+
+
 ---
 
 ## Architecture of the Pipeline (old version), part 1
@@ -120,6 +132,14 @@ for help with refactoring the pipeline. Together we identified areas that could 
   have moved on.
 * It is difficult to learn about the status of running jobs.    
 
+???
+
+split this into 2 slides
+maybe with themes: technology vs process
+
+make a table with columns: problem / solution
+(maybe 2 pages of that)
+
 
 ---
 
@@ -169,6 +189,16 @@ at which time they look in SimpleDB for information about what they should do.
   but different from, Flask. We prefer to use Flask directly,
   so we use Zappa.
 
+???
+
+make a diagram of how lambda is used
+list advantages of lambda
+link to https://gist.github.com/dtenenba/f695a6ddd29fbe900a440773083563a7 to show
+comparison
+does flask work in other cloud's lambda equivalent? (google)
+flask is used in app engine (but we don't know if it works in google
+cloud functions)
+
 ---
 
 ## RESTful endpoints
@@ -178,6 +208,11 @@ Endpoint | Method | Authenticated? | Purpose
 `/job` | `POST` |  Yes | Start a new job.
 `/job` | `GET` | No | Get information about running jobs. Can be constrained by parameters to display only jobs of interest.
 `/stop_instances` | `POST` | Yes | Stop instances associated with a job. Only used by the final worker on a job.
+
+???
+this illustrates:
+collaboration w/lab
+service we offer: restful endpoints
 
 ---
 
@@ -242,8 +277,30 @@ TL;DR: Python 2.
 * Continuous Integration (CI) for Java code with [CircleCI](https://circleci.com/)
 * Secrets Management with [CredStash](https://github.com/fugue/credstash)
 
+???
+add one line about credstash - why we like it, who recommended it,
+what problem it solves. other options are hashicorp vault, chef vault
+(mention other stuff we are doing, ask mrg for input(?))
+
+circleci - vs travis
+circleci is nice because it figures out your type of project
+travis is nice, widely adopted
+expand on unit tests, why we used them, but why it's always a good idea too
+underline keywords in long tables
+
+mention why basespace is deprecated
+ - reliability
+ - support
+ - api stablility & documentation issues
+ - they did not need it
+
+ in theory basespace is nice because ...
+ but in practice not...
+ 
 
 ---
+
+
 
 ## The End
 
