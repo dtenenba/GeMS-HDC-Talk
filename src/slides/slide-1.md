@@ -17,7 +17,7 @@ To build locally, do:
 
     gulp
 
-To deploy to production url above (probably have to commit first?):
+To deploy to production url above (probably have to commit/push first?):
 
     gulp deploy-pages    
 
@@ -35,6 +35,10 @@ The GeMS pipeline is a project that originated in the
 
 The Geraghty Lab reached out to
 [SciComp](https://teams.fhcrc.org/sites/citwiki/SciComp/Pages/Home.aspx?TreeField=Wiki_x0020_Page_x0020_Categories) for help modernizing the codebase.
+
+SciComp took on this work (a longer-term project than we usually help
+out with) in order to learn more about modern cloud stacks in the context
+of a real project.
 
 The result of that work is what we are presenting today.
 
@@ -296,7 +300,10 @@ mention why basespace is deprecated
 
  in theory basespace is nice because ...
  but in practice not...
- 
+
+ keywords bind parts of diagrams to parts of text
+ (in addition to numbers)
+
 
 ---
 
