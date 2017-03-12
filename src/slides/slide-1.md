@@ -3,7 +3,7 @@ name: title
 
 # GeMS Lambda Pipeline
 
-## Dan Tenenbaum
+## Dan Tenenbaum, Scientific Computing
 
 <h3 id="display_time"></h3>
 
@@ -42,10 +42,6 @@ of a real project.
 
 The result of that work is what we are presenting today.
 
-???
-
-we accepted so that we could learn more about modern cloud stacks
-in the context of a real project.
 
 
 ---
@@ -192,6 +188,7 @@ at which time they look in SimpleDB for information about what they should do.
 * Amazon has released its [Python Serverless Microframework for AWS](https://aws.amazon.com/blogs/developer/preview-the-python-serverless-microframework-for-aws/) (PSMA) which exposes a framework similar to,
   but different from, Flask. We prefer to use Flask directly,
   so we use Zappa.
+  Here's [a more detailed comparison](https://gist.github.com/dtenenba/f695a6ddd29fbe900a440773083563a7).
 
 ???
 
@@ -213,10 +210,9 @@ Endpoint | Method | Authenticated? | Purpose
 `/job` | `GET` | No | Get information about running jobs. Can be constrained by parameters to display only jobs of interest.
 `/stop_instances` | `POST` | Yes | Stop instances associated with a job. Only used by the final worker on a job.
 
-???
-this illustrates:
-collaboration w/lab
-service we offer: restful endpoints
+
+A RESTful API is a good example of both a way that SciComp can
+collaborate with labs, and a service that we can provide.
 
 ---
 
