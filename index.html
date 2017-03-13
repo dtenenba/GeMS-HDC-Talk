@@ -15,7 +15,7 @@ name: title
 
 # GeMS Lambda Pipeline
 
-## Dan Tenenbaum
+## Dan Tenenbaum, Scientific Computing
 
 <h3 id="display_time"></h3>
 
@@ -29,7 +29,7 @@ To build locally, do:
 
     gulp
 
-To deploy to production url above (probably have to commit first?):
+To deploy to production url above (probably have to commit/push first?):
 
     gulp deploy-pages    
 
@@ -48,7 +48,13 @@ The GeMS pipeline is a project that originated in the
 The Geraghty Lab reached out to
 [SciComp](https://teams.fhcrc.org/sites/citwiki/SciComp/Pages/Home.aspx?TreeField=Wiki_x0020_Page_x0020_Categories) for help modernizing the codebase.
 
+SciComp took on this work (a longer-term project than we usually help
+out with) in order to learn more about modern cloud stacks in the context
+of a real project.
+
 The result of that work is what we are presenting today.
+
+
 
 ---
 
@@ -64,6 +70,12 @@ High-level overview presented by a member of the Geraghty Lab
 * Input (fasta files from illumina sequencer)
 * Output (a report that can be viewed in GeMS-UI) (screenshots?)
 * HLA Typing
+
+???
+
+pictures - they may have some pictures
+
+
 ---
 
 ## Architecture of the Pipeline (old version), part 1
@@ -84,6 +96,7 @@ High-level overview presented by a member of the Geraghty Lab
 ---
 
 class: small
+exclude: true
 
 ## Old Pipeline Components
 
@@ -93,7 +106,7 @@ class: small
 | --- | --- |
 | [Illumina MiSeq Sequencer](https://www.illumina.com/systems/sequencing-platforms/miseq.html) | Produces initial data (in fastq.gz format) |
 | [Amazon S3](https://aws.amazon.com/s3/) | File storage at all stages of the pipline |
-| [Amazon SimpleDB](https://aws.amazon.com/simpledb/) | Deprecated key-value store, used for queueing and storing job metadata. Not really a queuing system. |
+| [Amazon SimpleDB](https://aws.amazon.com/simpledb/) | Deprecated key-value store, used for queueing and storing job metadata. SimpleDB was not designed to be a queueing system. |
 | [BaseSpace](https://basespace.illumina.com/home/index) | Illumina's app gateway and file storage space, one of two ways to kick off the pipeline. |
 | [ScisCloud Web Application](https://sciscloud.herokuapp.com/) | A second way to kick off the pipeline. |
 | Queueing Server | An always-on [EC2](https://aws.amazon.com/ec2/) instance listening for new jobs, either via a Python web server (for jobs from BaseSpace) or SSH connections (for jobs from ScisCloud) |
@@ -105,6 +118,7 @@ class: small
 
 
 ---
+exclude: true
 
 ## Updating the Pipeline
 
@@ -132,8 +146,45 @@ for help with refactoring the pipeline. Together we identified areas that could 
   have moved on.
 * It is difficult to learn about the status of running jobs.    
 
+???
+
+split this into 2 slides
+maybe with themes: technology vs process
+
+make a table with columns: problem / solution
+(maybe 2 pages of that)
+use underline or bold to emphasize key points
 
 ---
+
+class: small
+
+## Updating the Pipeline, part 1: technology
+
+Problem | Solution
+--- | ---
+Queueing server is always on, even though requests to start jobs come in infrequently. Geraghty lab is paying by the hour for a machine that is mostly idle. | AWS Lambda is "serverless" compute, springing into existence only when we need it.
+SimpleDB is used to store job metadata, and essentially as a queueing system, to queue jobs onto a pool of EC2 instances that are stopped when idle. However, SimpleDB is now deprecated, and  was never designed to be a queueing system. | Get rid of pool of stopped workers, start workers from scratch as needed. No more need for a queueing system. Job metadata is stored in EC2 instance tags.
+It is difficult to learn about the status of running jobs. | [REST API](#REST-API) makes it easy.
+
+---
+
+class: small
+
+
+## Updating the Pipeline, part 2: Process
+
+Problem | Solution
+--- | ---
+There is no automated or formalized process for creating the Amazon Machine Image (AMI) upon which the workers are based. | Process is now captured in a shell script that runs when each worker starts, _bootstrapping_ it.
+There is no canonical process for building Java code and distributing build products. | Continuous Integration (CI): Use [CircleCI](https://circleci.com/) to automatically build Java code on each commit and deploy to S3 along with a commit tag.
+It is difficult to locally develop code that is designed to run inside a worker. | [Docker](https://www.docker.com/) container and [Unit Tests](https://docs.python.org/2/library/unittest.html): Container is created using the same script that _bootstraps_ workers. AWS Services and REST APIs are mocked out in unit tests, allowing local development/testing of code that runs on workers.
+Codebase is aging and many of the people who worked on it have moved on. | The process of updating the project touched a lot of the code, and we tried to modify all touched files to be free of [linter](#best-practices) errors and warnings.
+Credentials and other secrets are hardcoded in source files checked into version control. | Not advised even in private GitHub repositories, solved using [CredStash](#best-practices)
+
+---
+
+exclude: true
 
 ## New Pipeline Components
 
@@ -164,24 +215,54 @@ at which time they look in SimpleDB for information about what they should do.
 
 ---
 
-## How AWS Lambda is used in the pipeline
+## How AWS Lambda is used in the pipeline (part 1)
 
-* Lambda lets you define "Lambda functions" that can be written in
+![usage of AWS Lambda](img/lambda_diagram.jpg)
+
+---
+
+
+## How AWS Lambda is used in the pipeline (part 2)
+
+* [Lambda](https://aws.amazon.com/lambda/) lets you define "Lambda functions" that can be written in
   Python, Java, or Node.js. (Ours is in Python.)
-* These functions can be triggered by numerous events.
-* Using Amazon API Gateway, you can assign a URL to a Lambda function,
+* These functions can be triggered by [numerous events](https://docs.aws.amazon.com/lambda/latest/dg/invoking-lambda-function.html).
+* Using [Amazon API Gateway](https://aws.amazon.com/api-gateway/), you can assign a URL to a Lambda function,
   and trigger the function by calling that URL.
 * Using a tool called [Zappa](https://github.com/Miserlou/Zappa),
   you can write an ordinary [Flask](http://flask.pocoo.org/) application
-  and deploy it as a Lambda function.
+  and deploy it as a Lambda function. During development you can test, deploy, and debug the app on your local machine.
 * In our case, the Flask application has both ordinary endpoints
   (for use by BaseSpace) and RESTful endpoints (for use by workers
   and interested clients such as webapps).
 * Amazon has released its [Python Serverless Microframework for AWS](https://aws.amazon.com/blogs/developer/preview-the-python-serverless-microframework-for-aws/) (PSMA) which exposes a framework similar to,
   but different from, Flask. We prefer to use Flask directly,
   so we use Zappa.
+  Here's [a more detailed comparison](https://gist.github.com/dtenenba/f695a6ddd29fbe900a440773083563a7), and [a longer one](https://blog.zappa.io/posts/comparison-zappa-verus-chalice) from one of the Zappa authors.
+
+???
+
+make a diagram of how lambda is used
+list advantages of lambda
+link to https://gist.github.com/dtenenba/f695a6ddd29fbe900a440773083563a7 to show
+comparison
+does flask work in other cloud's lambda equivalent? (google)
+flask is used in app engine (but we don't know if it works in google
+cloud functions)
 
 ---
+
+## Advantages of AWS Lambda (or any 'serverless' framework)
+
+* No paying for server that is always on but rarely used.
+* No maintenance (updating packages, patching, etc.)
+* Focus exclusively on business logic.
+* Numerous [event sources](https://docs.aws.amazon.com/lambda/latest/dg/invoking-lambda-function.html) are supported.
+* Low cost (first million requests/month are free; $0.20 per 1 million requests thereafter).
+* Lifecycle of Lambda function is a few milliseconds.
+
+---
+name: REST-API
 
 ## RESTful endpoints
 
@@ -190,6 +271,10 @@ Endpoint | Method | Authenticated? | Purpose
 `/job` | `POST` |  Yes | Start a new job.
 `/job` | `GET` | No | Get information about running jobs. Can be constrained by parameters to display only jobs of interest.
 `/stop_instances` | `POST` | Yes | Stop instances associated with a job. Only used by the final worker on a job.
+
+
+A RESTful API is a good example of both a way that SciComp can
+collaborate with labs, and a service that we can provide.
 
 ---
 
@@ -242,20 +327,68 @@ TL;DR: Python 2.
 * Even though Python 3 is not used, we strive to write code
   that will work in both versions.
 
+---
+name: basespace
+
+## About BaseSpace
+
+[BaseSpace](https://basespace.illumina.com/home/index) is an
+"app store" provided by Illumina (the maker of the sequencer)
+used in the GeMS pipeline). Theoretically BaseSpace is nice because it allows users to use a wide-variety of third-party
+"apps" against their data stored in the cloud.
+
+In practice, its use is problematic, and it will no longer be
+used in the GeMS pipeline because:
+
+* Service was not reliable (downtime).
+* Support was difficult to obtain.
+* The API was not stable, and documentation was lacking
+  or outdated.
+* The presence of other apps was not thought to add
+  value to the GeMS pipeline.
+* No Python 3 support (until my [pull request](https://github.com/basespace/basespace-python-sdk/pull/23) was accepted).  
+
+
 
 
 ---
+name: best-practices
 
 ## Best Practices
 
 * Linters (pylint, flake8, pyflakes); [Atom](https://atom.io/) (editor) integration
 * Unit tests
 * Watching for [Anti-Patterns](https://docs.quantifiedcode.com/python-anti-patterns/)
-* Continuous Integration (CI) for Java code with [CircleCI](https://circleci.com/)
-* Secrets Management with [CredStash](https://github.com/fugue/credstash)
+* Continuous Integration (CI) for Java code with [CircleCI](https://circleci.com/). ([Travis](https://travis-ci.org/) is also very nice, and widely adopted, but CircleCI is smart enough to figure out how to build most projects without being told).
+* Secrets Management with [CredStash](https://github.com/fugue/credstash) - a simple AWS-based solution, appropriate for this project since all parties share AWS credentials. Other options might be [Chef Vault](https://github.com/chef/chef-vault) or [Hashicorp Vault](https://github.com/hashicorp/vault) (two Scicomp presentations on the latter are [here](https://fredhutch.github.io/svalbard-overview/#1) and [here](https://fredhutch.github.io/svalbard-intro/#1)).
+
+???
+add one line about credstash - why we like it, who recommended it,
+what problem it solves. other options are hashicorp vault, chef vault
+(mention other stuff we are doing, ask mrg for input(?))
+
+circleci - vs travis
+circleci is nice because it figures out your type of project
+travis is nice, widely adopted
+expand on unit tests, why we used them, but why it's always a good idea too
+underline keywords in long tables
+
+mention why basespace is deprecated
+ - reliability
+ - support
+ - api stablility & documentation issues
+ - they did not need it
+
+ in theory basespace is nice because ...
+ but in practice not...
+
+ keywords bind parts of diagrams to parts of text
+ (in addition to numbers)
 
 
 ---
+
+
 
 ## The End
 
