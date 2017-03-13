@@ -48,18 +48,37 @@ The result of that work is what we are presenting today.
 
 ## What is the GeMS Pipeline?
 
-High-level overview presented by a member of the Geraghty Lab
-(Brandon or Wyatt).
 
-(Hope to add content contributed by them...)
 
-* Purpose
 * What does GeMS stand for?
-* Input (fasta files from illumina sequencer)
+  GEnetics Management Software (?)
+* Geraghty Lab manufactures special reagent kits
+  for use with the MiSeq sequencer & makes these
+  available to external collaborators.
+* In order to make sense of sequencing results,
+  a special analysis pipeline is needed.
+* Input (fastq files from illumina sequencer)
 * Output (a report that can be viewed in GeMS-UI) (screenshots?)
-* HLA Typing
+* HLA Typing - immune receptor genes
+   human leukocyte antigen
+
+ -  mention what is parallelized
+ - mention logging (that is new)
+
+ results are for donor matching (mostly bone marrow)
+ used by transplant centers
+ increasing accuracy  (results) of past results
+ extensible to infectious disease, autoimmune disorders
+
+
 
 ???
+
+they sell reagent kits
+for people to use in their own labs with miseq
+they generate a dna library for the sequencer
+to understand the results, we need to run it through
+
 
 pictures - they may have some pictures
 
