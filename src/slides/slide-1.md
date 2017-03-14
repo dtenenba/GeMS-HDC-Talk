@@ -59,7 +59,6 @@ The result of that work is what we are presenting today.
 * Input (fastq files from illumina sequencer)
 * Output (a report that can be viewed in GeMS-UI desktop app)
 * HLA Typing - immune receptor genes
-   human leukocyte antigen
 * Results are for donor matching (mostly bone marrow)
 * Used by transplant centers
 * Increasing accuracy of past results
