@@ -1,7 +1,7 @@
 class: center, middle
 name: title
 
-# GeMS Lambda Pipeline
+## GeMS Pipeline Optimization For Geraghty Lab
 
 ## Dan Tenenbaum, Scientific Computing
 
@@ -50,25 +50,22 @@ The result of that work is what we are presenting today.
 
 
 
-* What does GeMS stand for?
-  GEnetics Management Software (?)
+* GeMS is  <b>Ge</b>netics <b>M</b>anagement <b>S</b>oftware
 * Geraghty Lab manufactures special reagent kits
   for use with the MiSeq sequencer & makes these
   available to external collaborators.
 * In order to make sense of sequencing results,
   a special analysis pipeline is needed.
 * Input (fastq files from illumina sequencer)
-* Output (a report that can be viewed in GeMS-UI) (screenshots?)
+* Output (a report that can be viewed in GeMS-UI desktop app)
 * HLA Typing - immune receptor genes
    human leukocyte antigen
+* Results are for donor matching (mostly bone marrow)
+* Used by transplant centers
+* Increasing accuracy of past results
+* Extensible to infectious disease, autoimmune disorders
 
- -  mention what is parallelized
- - mention logging (that is new)
 
- results are for donor matching (mostly bone marrow)
- used by transplant centers
- increasing accuracy  (results) of past results
- extensible to infectious disease, autoimmune disorders
 
 
 
@@ -99,6 +96,18 @@ pictures - they may have some pictures
 ### Inside a single worker
 
 ![old pipeline part 2](img/old_pipeline_2.jpg)
+
+---
+
+## Final Output
+
+A compressed XML file:
+
+<img src="img/xml.png" width="400" height="200" />
+
+...viewed in the GeMS UI desktop app:
+
+<img src="img/gems-ui.png" width="400" height="200" />
 
 ---
 
@@ -171,9 +180,9 @@ class: small
 Problem | Solution
 --- | ---
 Queueing server is always on, even though requests to start jobs come in infrequently. Geraghty lab is paying by the hour for a machine that is mostly idle. | AWS Lambda is "serverless" compute, springing into existence only when we need it.
-SimpleDB is used to store job metadata, and essentially as a queueing system, to queue jobs onto a pool of EC2 instances that are stopped when idle. However, SimpleDB is now deprecated, and  was never designed to be a queueing system. | Get rid of pool of stopped workers, start workers from scratch as needed. No more need for a queueing system. Job metadata is stored in EC2 instance tags.
+SimpleDB is used to store job metadata, and essentially as a queueing system, to queue jobs onto a pool of EC2 instances that are stopped when idle. However, SimpleDB is now deprecated, and  was never designed to be a queueing system. | Get rid of pool of stopped workers, start workers from scratch as needed. No more need for a queueing system. Job metadata is stored in EC2 instance tags. Each worker processes 3 (or fewer) samples serially (as this can be done in less than an hour), but any number of workers can run in parallel.
 It is difficult to learn about the status of running jobs. | [REST API](#REST-API) makes it easy.
-
+If something goes wrong, it can be hard to find out which worker failed and what exactly happened. | Using [Watchtower](https://pypi.python.org/pypi/watchtower), ordinary Python log messages go into [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) where they can be viewed in aggregate.
 ---
 
 class: small
@@ -238,13 +247,12 @@ at which time they look in SimpleDB for information about what they should do.
   and trigger the function by calling that URL.
 * Using a tool called [Zappa](https://github.com/Miserlou/Zappa),
   you can write an ordinary [Flask](http://flask.pocoo.org/) application
-  and deploy it as a Lambda function. During development you can test, deploy, and debug the app on your local machine.
-* In our case, the Flask application has both ordinary endpoints
-  (for use by BaseSpace) and RESTful endpoints (for use by workers
+  and deploy it as a Lambda function. During development you can test, run, and debug the app on your local machine.
+* In our case, the Flask application has  RESTful endpoints (to be consumed by workers
   and interested clients such as webapps).
 * Amazon has released its [Python Serverless Microframework for AWS](https://aws.amazon.com/blogs/developer/preview-the-python-serverless-microframework-for-aws/) (PSMA) which exposes a framework similar to,
   but different from, Flask. We prefer to use Flask directly,
-  so we use Zappa.
+  so we use Zappa. This also avoids vendor lock-in.
   Here's [a more detailed comparison](https://gist.github.com/dtenenba/f695a6ddd29fbe900a440773083563a7), and [a longer one](https://blog.zappa.io/posts/comparison-zappa-verus-chalice) from one of the Zappa authors.
 
 ???
@@ -273,11 +281,11 @@ name: REST-API
 
 ## RESTful endpoints
 
-Endpoint | Method | Authenticated? | Purpose
+Endpoint | Method | Authenticated? | Purpose | Consumer
 --- | --- | --- | ---
-`/job` | `POST` |  Yes | Start a new job.
-`/job` | `GET` | No | Get information about running jobs. Can be constrained by parameters to display only jobs of interest.
-`/stop_instances` | `POST` | Yes | Stop instances associated with a job. Only used by the final worker on a job.
+`/job` | `POST` |  Yes | Start a new job. | Flask trigger app
+`/job` | `GET` | No | Get information about running jobs. Can be constrained by parameters to display only jobs of interest. | SciScloud web app; anyone
+`/stop_instances` | `POST` | Yes | Stop instances associated with a job. Only used by the final worker on a job. | Workers
 
 
 A RESTful API is a good example of both a way that SciComp can
@@ -285,7 +293,7 @@ collaborate with labs, and a service that we can provide.
 
 ---
 
-## Example output of `/job` endpoint:
+## Example output of `/job` endpoint (`GET` method):
 
 ```json
 [
@@ -294,7 +302,7 @@ collaborate with labs, and a service that we can provide.
         "hla_class": "2",
         "overall_status": "COMPLETE",
         "prefix": "2016-10-27-PT140",
-        "session_key": "bwilkins2016sc-2016-08-12_meetingtest-class-1-161213-22:58:9397645206",
+        "session_key": "direct.typing-2016-10-27-PT140-class-1-161213-22:58:9397645206",
         "workers": [
             {
                 "instance_id": "16f3230f6964b34915ebfa99dcc7f75a493e19aaff27350e4755a620d327cc75",
@@ -323,7 +331,9 @@ TL;DR: Python 2.
   There were two roadblocks to porting the code to Python 3:
   * The BaseSpace API did not work in Python 3. I submitted
     a [pull request](https://github.com/basespace/basespace-python-sdk/pull/20)
-    to fix this, which was accepted.
+    to fix this, which was accepted. This is no
+    longer an issue as BaseSpace is no longer used
+    in this project.
   * Lambda itself does not support Python 3. This is puzzling
     since it was launched in 2014. We have contacted AWS
     and requested Python 3 support.
@@ -367,7 +377,9 @@ name: best-practices
 * Unit tests
 * Watching for [Anti-Patterns](https://docs.quantifiedcode.com/python-anti-patterns/)
 * Continuous Integration (CI) for Java code with [CircleCI](https://circleci.com/). ([Travis](https://travis-ci.org/) is also very nice, and widely adopted, but CircleCI is smart enough to figure out how to build most projects without being told).
-* Secrets Management with [CredStash](https://github.com/fugue/credstash) - a simple AWS-based solution, appropriate for this project since all parties share AWS credentials. Other options might be [Chef Vault](https://github.com/chef/chef-vault) or [Hashicorp Vault](https://github.com/hashicorp/vault) (two Scicomp presentations on the latter are [here](https://fredhutch.github.io/svalbard-overview/#1) and [here](https://fredhutch.github.io/svalbard-intro/#1)).
+* Secrets Management with [CredStash](https://github.com/fugue/credstash) - a simple AWS-based solution, appropriate for this project since all parties share an AWS account. Other options might be [Chef Vault](https://github.com/chef/chef-vault) or [Hashicorp Vault](https://github.com/hashicorp/vault) (two Scicomp presentations on the latter are [here](https://fredhutch.github.io/svalbard-overview/#1) and [here](https://fredhutch.github.io/svalbard-intro/#1)).
+
+<img src="img/linter.png" width="400" height="250" /> PyLint and Atom in action.
 
 ???
 add one line about credstash - why we like it, who recommended it,
