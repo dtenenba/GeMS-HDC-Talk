@@ -194,6 +194,9 @@ Queueing server is always on, even though requests to start jobs come in infrequ
 SimpleDB is used to store job metadata, and essentially as a queueing system, to queue jobs onto a pool of EC2 instances that are stopped when idle. However, SimpleDB is now deprecated, and  was never designed to be a queueing system. | Get rid of pool of stopped workers, start workers from scratch as needed. No more need for a queueing system. Job metadata is stored in EC2 instance tags. Each worker processes 3 (or fewer) samples serially (as this can be done in less than an hour), but any number of workers can run in parallel.
 It is difficult to learn about the status of running jobs. | [REST API](#REST-API) makes it easy.
 If something goes wrong, it can be hard to find out which worker failed and what exactly happened. | Using [Watchtower](https://pypi.python.org/pypi/watchtower), ordinary Python log messages go into [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) where they can be viewed in aggregate.
+
+<img src="img/logging.png"/> <br/>Viewing log entries in the CloudWatch console.
+
 ---
 
 class: small
@@ -205,7 +208,7 @@ Problem | Solution
 --- | ---
 There is no automated or formalized process for creating the Amazon Machine Image (AMI) upon which the workers are based. | Process is now captured in a shell script that runs when each worker starts, _bootstrapping_ it.
 There is no canonical process for building Java code and distributing build products. | Continuous Integration (CI): Use [CircleCI](https://circleci.com/) to automatically build Java code on each commit and deploy to S3 along with a commit tag.
-It is difficult to locally develop code that is designed to run inside a worker. | [Docker](https://www.docker.com/) container and [Unit Tests](https://docs.python.org/2/library/unittest.html): Container is created using the same script that _bootstraps_ workers. AWS Services and REST APIs are mocked out in unit tests, allowing local development/testing of code that runs on workers.
+It is difficult to locally test code that is designed to run inside a worker. | [Docker](https://www.docker.com/) container and [Unit Tests](https://docs.python.org/2/library/unittest.html): Container is created using the same script that _bootstraps_ workers. AWS Services and REST APIs are mocked out in unit tests, allowing local development/testing of code that runs on workers.
 Codebase is aging and many of the people who worked on it have moved on. | The process of updating the project touched a lot of the code, and we tried to modify all touched files to be free of [linter](#best-practices) errors and warnings.
 Credentials and other secrets are hardcoded in source files checked into version control. | Not advised even in private GitHub repositories, solved using [CredStash](#best-practices)
 
@@ -260,7 +263,8 @@ at which time they look in SimpleDB for information about what they should do.
   you can write an ordinary [Flask](http://flask.pocoo.org/) application
   and deploy it as a Lambda function. During development you can test, run, and debug the app on your local machine.
 * In our case, the Flask application has  RESTful endpoints (to be consumed by workers
-  and interested clients such as webapps).
+  and interested clients such as webapps). This was developed using the
+  [Flask-RESTful](https://flask-restful.readthedocs.io/en/0.3.5/) package.
 * Amazon has released its [Python Serverless Microframework for AWS](https://aws.amazon.com/blogs/developer/preview-the-python-serverless-microframework-for-aws/) (PSMA) which exposes a framework similar to,
   but different from, Flask. We prefer to use Flask directly,
   so we use Zappa. This also avoids vendor lock-in.
@@ -283,7 +287,8 @@ cloud functions)
 * No paying for server that is always on but rarely used.
 * No maintenance (updating packages, patching, etc.)
 * Focus exclusively on business logic.
-* Numerous [event sources](https://docs.aws.amazon.com/lambda/latest/dg/invoking-lambda-function.html) are supported.
+* Numerous [event sources](https://docs.aws.amazon.com/lambda/latest/dg/invoking-lambda-function.html) are supported. There is scope to automate more parts of the pipeline using
+some of these sources.
 * Low cost (first million requests/month are free; $0.20 per 1 million requests thereafter).
 * Lifecycle of Lambda function is a few milliseconds.
 
@@ -294,9 +299,9 @@ name: REST-API
 
 Endpoint | Method | Authenticated? | Purpose | Consumer
 --- | --- | --- | ---
-`/job` | `POST` |  Yes | Start a new job. | Flask trigger app
+`/job` | `POST` |  Yes | Start a new job. | SciScloud web app
 `/job` | `GET` | No | Get information about running jobs. Can be constrained by parameters to display only jobs of interest. | SciScloud web app; anyone
-`/stop_instances` | `POST` | Yes | Stop instances associated with a job. Only used by the final worker on a job. | Workers
+`/stop_instances` | `POST` | Yes | Terminate instances associated with a job. Only used by the final worker on a job. | Workers
 
 
 A RESTful API is a good example of both a way that SciComp can
@@ -313,7 +318,7 @@ collaborate with labs, and a service that we can provide.
         "hla_class": "2",
         "overall_status": "COMPLETE",
         "prefix": "2016-10-27-PT140",
-        "session_key": "direct.typing-2016-10-27-PT140-class-1-161213-22:58:9397645206",
+        "session_key": "direct.typing-2016-10-27-PT140-class-2-161213-22:58:9397645206",
         "workers": [
             {
                 "instance_id": "16f3230f6964b34915ebfa99dcc7f75a493e19aaff27350e4755a620d327cc75",
@@ -348,7 +353,9 @@ TL;DR: Python 2.
   * Lambda itself does not support Python 3. This is puzzling
     since it was launched in 2014. We have contacted AWS
     and requested Python 3 support.
-* Since there are two separate codebases, and only one of them
+* Since there are two separate codebases (the Flask web app
+  running as a Lambda function and the code that runs on
+  the workers), and only one of them
   needs to run as a Lambda function, one of the codebases
   could theoretically be ported to Python 3. But this was
   deemed too confusing. So both codebases remain in Python 2 for now.
@@ -361,20 +368,21 @@ name: basespace
 ## About BaseSpace
 
 [BaseSpace](https://basespace.illumina.com/home/index) is an
-"app store" provided by Illumina (the maker of the sequencer)
+"app store" and data repository provided by Illumina (the maker of the sequencer
 used in the GeMS pipeline). Theoretically BaseSpace is nice because it allows users to use a wide-variety of third-party
 "apps" against their data stored in the cloud.
 
 In practice, its use is problematic, and it will no longer be
 used in the GeMS pipeline because:
 
-* Service was not reliable (downtime).
+* Service was not reliable (downtime). No other
+  way to start a job.
 * Support was difficult to obtain.
 * The API was not stable, and documentation was lacking
   or outdated.
+* No Python 3 support (until my [pull request](https://github.com/basespace/basespace-python-sdk/pull/23) was accepted).  
 * The presence of other apps was not thought to add
   value to the GeMS pipeline.
-* No Python 3 support (until my [pull request](https://github.com/basespace/basespace-python-sdk/pull/23) was accepted).  
 
 
 
@@ -387,7 +395,7 @@ name: best-practices
 * Linters (pylint, flake8, pyflakes); [Atom](https://atom.io/) (editor) integration
 * Unit tests
 * Watching for [Anti-Patterns](https://docs.quantifiedcode.com/python-anti-patterns/)
-* Continuous Integration (CI) for Java code with [CircleCI](https://circleci.com/). ([Travis](https://travis-ci.org/) is also very nice, and widely adopted, but CircleCI is smart enough to figure out how to build most projects without being told).
+* Continuous Integration (CI) for Java code with [CircleCI](https://circleci.com/). ([Travis](https://travis-ci.org/) is also very nice, and widely adopted, but CircleCI is smart enough to figure out how to build most projects without being told). Use of CI could be expanded to lint/test Python code.
 * Secrets Management with [CredStash](https://github.com/fugue/credstash) - a simple AWS-based solution, appropriate for this project since all parties share an AWS account. Other options might be [Chef Vault](https://github.com/chef/chef-vault) or [Hashicorp Vault](https://github.com/hashicorp/vault) (two Scicomp presentations on the latter are [here](https://fredhutch.github.io/svalbard-overview/#1) and [here](https://fredhutch.github.io/svalbard-intro/#1)).
 
 <img src="img/linter.png" width="400" height="250" /> PyLint and Atom in action.
